@@ -107,6 +107,7 @@ async def recommend_optimized_route(req: RecommendRequest):
         )
         intent = json.loads(response.text)
     except Exception as e:
+        print("🚨 [Gemini 부분 에러] 원인:", str(e))
         raise HTTPException(status_code=500, detail=f"Gemini 분석 오류: {str(e)}")
 
     if not intent.get("is_ready") or not intent.get("region"):
@@ -150,6 +151,7 @@ async def recommend_optimized_route(req: RecommendRequest):
             places = cur.fetchall()
 
     except Exception as e:
+        print("🚨 [DB 조회 부분 에러] 원인:", str(e))
         raise HTTPException(status_code=500, detail=f"DB 조회 오류: {str(e)}")
     finally:
         if 'cur' in locals() and cur:
@@ -231,8 +233,8 @@ async def recommend_optimized_route(req: RecommendRequest):
         }
 
     # [MFS-GA Engine] 
-    POP_SIZE = 200
-    GENS = 250
+    POP_SIZE = 100
+    GENS = 150
 
     def get_fitness(route: List[dict]) -> float:
         total_dist = 0
@@ -248,14 +250,14 @@ async def recommend_optimized_route(req: RecommendRequest):
 
     for _ in range(GENS):
         population.sort(key=get_fitness, reverse=True)
-        next_gen = population[:20]
+        next_gen = population[:10]
         
         while len(next_gen) < POP_SIZE:
-            p1, p2 = random.sample(population[:50], 2)
+            p1, p2 = random.sample(population[:20], 2)
             idx = random.randint(1, max(1, len(places)-2))
             child = p1[:idx] + [p for p in p2 if p not in p1[:idx]]
             
-            if random.random() < 0.2:
+            if random.random() < 0.1:
                 i1, i2 = random.sample(range(len(child)), 2)
                 child[i1], child[i2] = child[i2], child[i1]
             next_gen.append(child)
