@@ -71,7 +71,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     # ----------------------------------------
     conversation = "\n".join([f"{msg.role}: {msg.content}" for msg in req.chat_history])
     
-    system_instruction = """
+    system_instruction = f"""
     너는 여행 큐레이터 'TRIPLY'의 AI 챗봇이야. 유저와 대화하며 취향과 목적지를 파악해.
     
     🚨 [특별 제약 조건: 서비스 가능 지역 제한] 🚨
