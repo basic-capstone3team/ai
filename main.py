@@ -98,6 +98,10 @@ async def recommend_optimized_route(req: RecommendRequest):
     7. weight_festival: 축제 참여 의지 (0.0~1.0)
     8. start_date / end_date: 날짜 (YYYY-MM-DD, 없으면 null)
     """
+
+    print("====== 🚨 프롬프트 CCTV 확인 🚨 ======", flush=True)
+    print(system_instruction, flush=True)
+    print("=======================================", flush=True)
     
     try:
         response = client.models.generate_content(
