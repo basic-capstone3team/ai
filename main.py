@@ -231,6 +231,8 @@ async def recommend_optimized_route(req: RecommendRequest):
     if len(places) == 1:
         return {
             "intent_extracted": intent,
+            "reply": final_reply,
+            "course_name": final_course_name,
             "itinerary": [
                 {
                     "order": 1, 
