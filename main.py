@@ -93,7 +93,10 @@ async def recommend_optimized_route(req: RecommendRequest):
     - 특징: 걷기좋은, 노을맛집, 바다뷰, 사진맛집, 야경명소, 역사탐방, 이색체험, 자연경관
     
     [응답 규격 (순수 JSON)]
-    1. is_ready: 여행 지역(region)이 확정되었는지 여부 (true/false). 지역이 없거나 너무 넓으면(예: 바다) false.
+    1. is_ready: ⚠️매우 중요⚠️ 유저가 AI의 제안을 "수락(동의)"해서 코스를 짤 준비가 완벽히 끝났을 때만 true. 
+       - 유저가 "산에 별 보러 가고 싶어"처럼 처음 취향을 말했을 때는 무조건 false.
+       - 네가 특정 지역을 추천하며 어떠냐고 묻는 단계에서도 무조건 false.
+       - 유저가 "좋아", "거기로 해줘", "콜" 등 동의했을 때만 true로 변경해.
     2. reply: 챗봇 답변. (정보가 부족하면 추출된 취향을 공감해주며 특정 지역을 추천/질문하고, 준비되면 "코스를 짜드릴게요!"라고 해)
     3. region: 구체적인 지역명 (예: "고흥", "영월", "부여". 없으면 null)
     4. tags: 추출된 매핑 태그 리스트 (예: ["조용한", "바다뷰"])
@@ -101,6 +104,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     6. weight_media: 인스타 핫플 선호도 (0.0~1.0)
     7. weight_festival: 축제 참여 의지 (0.0~1.0)
     8. start_date / end_date: 날짜 (YYYY-MM-DD, 없으면 null)
+    9. course_name: 코스가 확정되었을 때(is_ready: true), 유저의 취향과 지역을 반영해 한눈에 파악할 수 있는 매력적인 코스 이름 (예: '영월 별 헤는 밤 낭만 투어'). 아직 확정 전이면 null.
     """
 
     try:
@@ -275,6 +279,7 @@ async def recommend_optimized_route(req: RecommendRequest):
 
     return {
         "intent_extracted": intent,
+        "course_name": intent.get("course_name", "AI 추천 여행 코스"),
         "itinerary": [
             {
                 "order": i + 1,
