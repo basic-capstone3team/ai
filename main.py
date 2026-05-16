@@ -77,6 +77,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     
     system_instruction = f"""
     너는 여행 큐레이터 'TRIPLY'의 AI 챗봇이야. 유저와 대화하며 취향과 목적지를 파악해.
+    대화 중에 너 자신이나 서비스를 언급할 때는 절대 '트립리'라고 한글로 적지 말고, 반드시 영문 'TRIPLY'로 표기하거나 아예 주어를 생략해.
     
     🚨 [특별 제약 조건: 서비스 가능 지역 제한] 🚨
     유저가 지역을 못 정해서 네가 먼저 제안할 때는 반드시 아래 [TRIPLY DB 등록 장소 목록]에 있는 지역과 장소만 조합해서 추천해!
@@ -93,11 +94,13 @@ async def recommend_optimized_route(req: RecommendRequest):
     - 특징: 걷기좋은, 노을맛집, 바다뷰, 사진맛집, 야경명소, 역사탐방, 이색체험, 자연경관
     
     [응답 규격 (순수 JSON)]
-    1. is_ready: ⚠️매우 중요⚠️ 유저가 AI의 제안을 "수락(동의)"해서 코스를 짤 준비가 완벽히 끝났을 때만 true. 
-       - 유저가 "산에 별 보러 가고 싶어"처럼 처음 취향을 말했을 때는 무조건 false.
-       - 네가 특정 지역을 추천하며 어떠냐고 묻는 단계에서도 무조건 false.
-       - 유저가 "좋아", "거기로 해줘", "콜" 등 동의했을 때만 true로 변경해.
-    2. reply: 챗봇 답변. (정보가 부족하면 추출된 취향을 공감해주며 특정 지역을 추천/질문하고, 준비되면 "코스를 짜드릴게요!"라고 해)
+    1. is_ready: 여행 지역과 메인 테마가 정해져서 코스를 짤 수 있는지 여부 (true/false).
+       - 유저가 처음 목적이나 취향만 말했을 때는 false로 설정해.
+       - 네가 제안한 지역이나 장소에 대해 유저가 "좋네", "거기로 할래", "맞아" 등 긍정 및 수락의 대답을 했다면 즉시 true로 변경해. 추가 취향이나 분위기를 더 묻지 마.
+    2. reply: 챗봇 답변. 
+       - 가독성에 신경 써. 절대 문장을 길게 뭉쳐 쓰지 마. 내용이 넘어갈 때 반드시 줄바꿈(\n\n)을 사용해서 문단을 분리하고, 적절한 이모지를 활용해 모바일 화면에서 시각적으로 읽기 편하게 작성해.
+       - is_ready가 false일 때: 유저의 말에 공감하며 DB 내의 구체적 지역/장소를 추천하고 어떠냐고 물어봐. (예: "산에서 별을 보고 싶으시군요! 그렇다면 영월의 [장소]는 어떨까요?")
+       - is_ready가 true일 때: 서버에서 응답 메시지를 직접 조립할 것이므로, 여기서는 그냥 빈 문자열("")로 둬.
     3. region: 구체적인 지역명 (예: "고흥", "영월", "부여". 없으면 null)
     4. tags: 추출된 매핑 태그 리스트 (예: ["조용한", "바다뷰"])
     5. category_pref: "사람이 적은/숨겨진" 곳을 원하면 "HIDDEN", "핫플/유명한" 곳은 "TREND", 언급 없으면 null
@@ -277,9 +280,13 @@ async def recommend_optimized_route(req: RecommendRequest):
         (float(best_route[i+1]["latitude"]), float(best_route[i+1]["longitude"]))
     ).km for i in range(len(best_route)-1))
 
+    final_course_name = intent.get("course_name", "맞춤형 여행 코스")
+    final_reply = f"원하시는 분위기에 맞게 '{final_course_name}' 기획을 완료했어요!\n\n아래 버튼을 눌러 동선을 확인해 보세요! ✨"
+
     return {
         "intent_extracted": intent,
-        "course_name": intent.get("course_name", "AI 추천 여행 코스"),
+        "reply": final_reply,
+        "course_name": final_course_name,
         "itinerary": [
             {
                 "order": i + 1,
