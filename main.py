@@ -139,6 +139,7 @@ async def recommend_optimized_route(req: RecommendRequest):
        - 절대 대괄호 [ ] 등 기호를 출력하지 말고 자연스러운 띄어쓰기로 연결해.
        - 확정 전이면 null.
     10. selected_festival: 코스가 확정되었을 때(is_ready: true), 유저가 대화 중 특정 축제를 명시적으로 선택했거나 네가 제안한 축제에 동의했다면 그 축제의 이름. 축제를 가려는 것이 아니면 null.
+    11. theme_course: 유저가 "왕과사는남자", "꽃보다청춘" 등 미디어 기반 테마 코스를 요구하면 해당 키워드를 적어. 아니면 null.
     """
 
     try:
@@ -152,6 +153,32 @@ async def recommend_optimized_route(req: RecommendRequest):
         print("🚨 [Gemini 부분 에러] 원인:", str(e))
         raise HTTPException(status_code=500, detail=f"Gemini 분석 오류: {str(e)}")
 
+    recent_chat = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
+    
+    # 1) 미디어 테마 스캔
+    if "왕과사는남자" in recent_chat or "왕사남" in recent_chat:
+        intent["theme_course"] = "왕과사는남자"
+        intent["is_ready"] = True
+        intent["region"] = "테마투어"
+        intent["course_name"] = "🎬 영화 '왕과 사는 남자' 성지순례 코스"
+        print("🔥 [미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
+    elif "꽃보다청춘" in recent_chat or "꽃청춘" in recent_chat:
+        intent["theme_course"] = "꽃보다청춘"
+        intent["is_ready"] = True
+        intent["region"] = "테마투어"
+        intent["course_name"] = "📺 예능 '꽃보다 청춘' 힐링 투어"
+        print("🔥 [미디어 테마 강제 인식] 꽃보다청춘 코스 발동!")
+
+    # 2) 축제 및 일반 장소 스캔
+    if intent.get("is_ready"):
+        for f in valid_festivals:
+            if f["name"].replace(" ", "") in recent_chat:
+                intent["selected_festival"] = f["name"]
+                intent["weight_festival"] = 1.0  
+                print(f"대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
+                break
+
+    # 필수값 누락 시 채팅 모드로 리턴 (테마투어일 경우 무사통과)
     if not intent.get("is_ready") or not intent.get("region"):
         return {
             "status": "chat",
@@ -159,18 +186,6 @@ async def recommend_optimized_route(req: RecommendRequest):
             "itinerary": [],
             "total_distance": "0km"
         }
-    
-    if intent.get("is_ready"):
-        # JSON 결과물 따위 안 믿음. 가장 최근 대화(AI 제안 + 유저 수락) 2개만 텍스트로 합치기
-        recent_chat = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
-        
-        # 유저랑 방금까지 떠들던 축제가 있는지 무식하게 전체 DB랑 대조해서 찾아냄
-        for f in valid_festivals:
-            if f["name"].replace(" ", "") in recent_chat:
-                intent["selected_festival"] = f["name"]
-                intent["weight_festival"] = 1.0  # 가중치 MAX 강제 고정
-                print(f"🔥 [진짜 최종 멱살잡기] 대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
-                break
 
     # ----------------------------------------
     # [STEP 2] Supabase DB 직접 조회 (SQL)
@@ -182,8 +197,23 @@ async def recommend_optimized_route(req: RecommendRequest):
         conn = psycopg2.connect(db_url, sslmode='require')
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
+        # 테마 코스 DB 강제 로드 로직
+        theme_course = intent.get("theme_course")
+        if theme_course:
+            sql_query = """
+                SELECT p.place_id, p.name, p.latitude, p.longitude, 
+                        p.category, p.tags, 
+                       COALESCE(m.trend_score, 0) as trend_score
+                FROM Places p
+                LEFT JOIN Media_Trends m ON p.place_id = m.place_id
+                WHERE REPLACE(p.tags::text, ' ', '') LIKE %s
+            """
+            cur.execute(sql_query, (f"%{theme_course}%",))
+            places = cur.fetchall()
+            print(f"[테마 DB 멱살잡기] '{theme_course}' 태그 장소 {len(places)}개 로드 완료.")
+
+        # 축제 DB 조회
         target_festival = intent.get("selected_festival")
-        
         if target_festival:
             matched_festivals = [f for f in valid_festivals if target_festival.replace(" ", "") in f["name"].replace(" ", "") or f["name"].replace(" ", "") in target_festival.replace(" ", "")]
             festivals = matched_festivals if matched_festivals else []
@@ -196,7 +226,8 @@ async def recommend_optimized_route(req: RecommendRequest):
             cur.execute(query, tuple(params))
             festivals = cur.fetchall()
                     
-        if intent.get("region"):
+        # 지역 DB 조회 (테마 코스로 장소를 찾은 경우, 엉뚱한 지역 검색 스킵)
+        if not places and intent.get("region") and intent.get("region") != "테마투어":
             raw_keywords = intent["region"].split()
             region_keywords = []
             
@@ -208,7 +239,6 @@ async def recommend_optimized_route(req: RecommendRequest):
             
             where_clauses = " AND ".join(["p.location LIKE %s" for _ in region_keywords])
             params = [f"%{kw}%" for kw in region_keywords]
-
 
             sql_query = f"""
                 SELECT p.place_id, p.name, p.latitude, p.longitude, 
@@ -235,50 +265,48 @@ async def recommend_optimized_route(req: RecommendRequest):
                 cur.execute(sql_query_or, tuple(params))
                 places = cur.fetchall()
 
-            if places: # 검색된 장소가 최소 1개라도 있다면
-                center_lat = float(places[0]["latitude"])
-                center_lng = float(places[0]["longitude"])
-                
-                # DB의 전체 장소를 가져와서 거리 계산 준비
-                cur.execute("""
-                    SELECT p.place_id, p.name, p.latitude, p.longitude, 
-                            p.category, p.tags, 
-                           COALESCE(m.trend_score, 0) as trend_score
-                    FROM Places p
-                    LEFT JOIN Media_Trends m ON p.place_id = m.place_id
-                """)
-                all_db_places = cur.fetchall()
-                
-                # 중복 방지를 위한 기존 장소 ID 셋업
-                existing_ids = {p["place_id"] for p in places}
-                
-                for p in all_db_places:
-                    if p["place_id"] not in existing_ids:
-                        # 중심점과 다른 장소들의 직선거리(km) 계산
-                        dist = geodesic((center_lat, center_lng), (float(p["latitude"]), float(p["longitude"]))).km
-                        if dist <= 15.0:  # 15km 반경 내에 있으면 행정구역 무시하고 코스 후보에 합류
-                            places.append(p)
-                            existing_ids.add(p["place_id"])
-
-            # 지역 검색으로 장소가 나오지 않았을 때의 안전망 (60km 생존 필터링)
-            if not places and festivals and (intent.get("weight_festival", 0) >= 0.8 or intent.get("selected_festival")):
-                cur.execute("""
-                    SELECT p.place_id, p.name, p.latitude, p.longitude, 
-                            p.category, p.tags, 
-                           COALESCE(m.trend_score, 0) as trend_score
-                    FROM Places p
-                    LEFT JOIN Media_Trends m ON p.place_id = m.place_id
-                """)
-                all_db_places = cur.fetchall()
-                
-                f_lat = float(festivals[0]["latitude"])
-                f_lng = float(festivals[0]["longitude"])
-                
-                for p in all_db_places:
-                    p_lat = float(p["latitude"])
-                    p_lng = float(p["longitude"])
-                    if geodesic((f_lat, f_lng), (p_lat, p_lng)).km <= 60.0:
+        # 반경 15km 장소 추가 병합 (테마 장소가 5개 미만이어도 알아서 주변 장소로 채워줌)
+        if places: 
+            center_lat = float(places[0]["latitude"])
+            center_lng = float(places[0]["longitude"])
+            
+            cur.execute("""
+                SELECT p.place_id, p.name, p.latitude, p.longitude, 
+                        p.category, p.tags, 
+                       COALESCE(m.trend_score, 0) as trend_score
+                FROM Places p
+                LEFT JOIN Media_Trends m ON p.place_id = m.place_id
+            """)
+            all_db_places = cur.fetchall()
+            
+            existing_ids = {p["place_id"] for p in places}
+            
+            for p in all_db_places:
+                if p["place_id"] not in existing_ids:
+                    dist = geodesic((center_lat, center_lng), (float(p["latitude"]), float(p["longitude"]))).km
+                    if dist <= 15.0:  
                         places.append(p)
+                        existing_ids.add(p["place_id"])
+
+        # 안전망 (60km 생존 필터링)
+        if not places and festivals and (intent.get("weight_festival", 0) >= 0.8 or intent.get("selected_festival")):
+            cur.execute("""
+                SELECT p.place_id, p.name, p.latitude, p.longitude, 
+                        p.category, p.tags, 
+                       COALESCE(m.trend_score, 0) as trend_score
+                FROM Places p
+                LEFT JOIN Media_Trends m ON p.place_id = m.place_id
+            """)
+            all_db_places = cur.fetchall()
+            
+            f_lat = float(festivals[0]["latitude"])
+            f_lng = float(festivals[0]["longitude"])
+            
+            for p in all_db_places:
+                p_lat = float(p["latitude"])
+                p_lng = float(p["longitude"])
+                if geodesic((f_lat, f_lng), (p_lat, p_lng)).km <= 60.0:
+                    places.append(p)
 
     except Exception as e:
         print("🚨 [DB 조회 부분 에러] 원인:", str(e))
@@ -289,11 +317,17 @@ async def recommend_optimized_route(req: RecommendRequest):
         if 'conn' in locals() and conn:
             conn.close()
 
+    # DB에 장소가 진짜 아예 없을 때의 방어
     if not places:
         region_name = intent.get('region', '그')
+        if region_name == "테마투어":
+            reply_msg = "앗, 죄송해요! 아직 해당 테마 코스에 등록된 장소가 준비되지 않았어요. 😭 다른 테마나 지역은 어떠신가요?"
+        else:
+            reply_msg = f"앗, 죄송해요! 아직 제가 '{region_name}' 지역의 정보는 공부하지 못했어요. 😭 혹시 다른 지역은 어떠신가요?"
+            
         return {
             "status": "chat",
-            "reply": f"앗, 죄송해요! 아직 제가 '{region_name}' 지역의 정보는 공부하지 못했어요. 😭 혹시 다른 지역은 어떠신가요?",
+            "reply": reply_msg,
             "itinerary": [],
             "total_distance": "0km"
         }
@@ -306,8 +340,6 @@ async def recommend_optimized_route(req: RecommendRequest):
     w_media = intent.get("weight_media", 0.5)
     w_fest = intent.get("weight_festival", 0.5)
 
-    recent_text = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
-    
     for p in places:
         p_lat = float(p["latitude"])
         p_lng = float(p["longitude"])
@@ -341,10 +373,15 @@ async def recommend_optimized_route(req: RecommendRequest):
 
         val = (safe_w_media * safe_t_score) + (safe_w_fest * safe_bonus)
 
-        if p["name"].replace(" ", "") in recent_text:
+        if intent.get("theme_course") and p.get("tags"):
+            if intent["theme_course"] in str(p["tags"]).replace(" ", ""):
+                val += 99999.0
+                print(f"🔥 [테마 장소 철통방어] '{p['name']}' 강제 1순위 고정 완료!")
+
+        if p["name"].replace(" ", "") in recent_chat:
             val += 9999.0
-            print(f"🔥 [장소 멱살잡기] '{p['name']}' 발견! 점수 밀어내기 방지 완료.")
-            
+            print(f"🔥 [일반 장소 멱살잡기] '{p['name']}' 발견! 점수 밀어내기 방지 완료.")
+
         place_values[p["place_id"]] = val
         
         if dist_to_nearest_fest < nearest_to_fest:
