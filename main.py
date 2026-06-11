@@ -160,7 +160,7 @@ async def recommend_optimized_route(req: RecommendRequest):
         intent["theme_course"] = "왕과사는남자"
         intent["is_ready"] = True
         intent["region"] = "테마투어"
-        intent["course_name"] = "영화 '왕과 사는 남자' 성지순례 코스"
+        intent["course_name"] = "영화 왕과 사는 남자 성지순례 코스"
         print("[미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
 
     # 2) 축제 및 일반 장소 스캔
