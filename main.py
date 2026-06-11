@@ -139,7 +139,7 @@ async def recommend_optimized_route(req: RecommendRequest):
        - 절대 대괄호 [ ] 등 기호를 출력하지 말고 자연스러운 띄어쓰기로 연결해.
        - 확정 전이면 null.
     10. selected_festival: 코스가 확정되었을 때(is_ready: true), 유저가 대화 중 특정 축제를 명시적으로 선택했거나 네가 제안한 축제에 동의했다면 그 축제의 이름. 축제를 가려는 것이 아니면 null.
-    11. theme_course: 유저가 "왕과사는남자", "꽃보다청춘" 등 미디어 기반 테마 코스를 요구하면 해당 키워드를 적어. 아니면 null.
+    11. theme_course: 유저가 "왕과사는남자" 등 미디어 기반 테마 코스를 요구하면 해당 키워드를 적어. 아니면 null.
     """
 
     try:
@@ -155,19 +155,13 @@ async def recommend_optimized_route(req: RecommendRequest):
 
     recent_chat = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
     
-    # 1) 미디어 테마 스캔
+    # 1) 미디어 테마 스캔 (단일화)
     if "왕과사는남자" in recent_chat or "왕사남" in recent_chat:
         intent["theme_course"] = "왕과사는남자"
         intent["is_ready"] = True
         intent["region"] = "테마투어"
         intent["course_name"] = "🎬 영화 '왕과 사는 남자' 성지순례 코스"
         print("🔥 [미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
-    elif "꽃보다청춘" in recent_chat or "꽃청춘" in recent_chat:
-        intent["theme_course"] = "꽃보다청춘"
-        intent["is_ready"] = True
-        intent["region"] = "테마투어"
-        intent["course_name"] = "📺 예능 '꽃보다 청춘' 힐링 투어"
-        print("🔥 [미디어 테마 강제 인식] 꽃보다청춘 코스 발동!")
 
     # 2) 축제 및 일반 장소 스캔
     if intent.get("is_ready"):
@@ -175,7 +169,7 @@ async def recommend_optimized_route(req: RecommendRequest):
             if f["name"].replace(" ", "") in recent_chat:
                 intent["selected_festival"] = f["name"]
                 intent["weight_festival"] = 1.0  
-                print(f"대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
+                print(f"🔥 [최종 멱살잡기] 대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
                 break
 
     # 필수값 누락 시 채팅 모드로 리턴 (테마투어일 경우 무사통과)
@@ -197,7 +191,7 @@ async def recommend_optimized_route(req: RecommendRequest):
         conn = psycopg2.connect(db_url, sslmode='require')
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # 테마 코스 DB 강제 로드 로직
+        # 테마 코스 DB 강제 로드 로직 (태그 형변환 적용)
         theme_course = intent.get("theme_course")
         if theme_course:
             sql_query = """
@@ -210,7 +204,7 @@ async def recommend_optimized_route(req: RecommendRequest):
             """
             cur.execute(sql_query, (f"%{theme_course}%",))
             places = cur.fetchall()
-            print(f"[테마 DB 멱살잡기] '{theme_course}' 태그 장소 {len(places)}개 로드 완료.")
+            print(f"🔥 [테마 DB 멱살잡기] '{theme_course}' 태그 장소 {len(places)}개 로드 완료.")
 
         # 축제 DB 조회
         target_festival = intent.get("selected_festival")
@@ -265,7 +259,7 @@ async def recommend_optimized_route(req: RecommendRequest):
                 cur.execute(sql_query_or, tuple(params))
                 places = cur.fetchall()
 
-        # 반경 15km 장소 추가 병합 (테마 장소가 5개 미만이어도 알아서 주변 장소로 채워줌)
+        # 반경 15km 장소 추가 병합
         if places: 
             center_lat = float(places[0]["latitude"])
             center_lng = float(places[0]["longitude"])
@@ -373,11 +367,13 @@ async def recommend_optimized_route(req: RecommendRequest):
 
         val = (safe_w_media * safe_t_score) + (safe_w_fest * safe_bonus)
 
+        # 미디어 테마 장소 무적 보호막 (99999점)
         if intent.get("theme_course") and p.get("tags"):
             if intent["theme_course"] in str(p["tags"]).replace(" ", ""):
                 val += 99999.0
                 print(f"🔥 [테마 장소 철통방어] '{p['name']}' 강제 1순위 고정 완료!")
 
+        # 일반 장소 멱살잡기 (9999점)
         if p["name"].replace(" ", "") in recent_chat:
             val += 9999.0
             print(f"🔥 [일반 장소 멱살잡기] '{p['name']}' 발견! 점수 밀어내기 방지 완료.")
