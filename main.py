@@ -155,13 +155,13 @@ async def recommend_optimized_route(req: RecommendRequest):
 
     recent_chat = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
     
-    # 1) 미디어 테마 스캔 (단일화)
+    # 1) 미디어 테마 스캔
     if "왕과사는남자" in recent_chat or "왕사남" in recent_chat:
         intent["theme_course"] = "왕과사는남자"
         intent["is_ready"] = True
         intent["region"] = "테마투어"
-        intent["course_name"] = "🎬 영화 '왕과 사는 남자' 성지순례 코스"
-        print("🔥 [미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
+        intent["course_name"] = "영화 '왕과 사는 남자' 성지순례 코스"
+        print("[미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
 
     # 2) 축제 및 일반 장소 스캔
     if intent.get("is_ready"):
@@ -169,7 +169,7 @@ async def recommend_optimized_route(req: RecommendRequest):
             if f["name"].replace(" ", "") in recent_chat:
                 intent["selected_festival"] = f["name"]
                 intent["weight_festival"] = 1.0  
-                print(f"🔥 [최종 멱살잡기] 대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
+                print(f"[최종 멱살잡기] 대화 내역에서 '{f['name']}' 발견! AI 무시하고 강제 편입 완료.")
                 break
 
     # 필수값 누락 시 채팅 모드로 리턴 (테마투어일 경우 무사통과)
