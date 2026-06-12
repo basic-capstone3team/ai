@@ -71,7 +71,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     # ----------------------------------------
     conversation = "\n".join([f"{msg.role}: {msg.content}" for msg in req.chat_history])
 
-    print("\n🚨 [프론트엔드 데이터 수신 확인] 🚨")
+    print("\n[프론트엔드 데이터 수신 확인]")
     print(conversation)
     print("===================================\n")
     
@@ -89,16 +89,16 @@ async def recommend_optimized_route(req: RecommendRequest):
     
     [특별 제약 조건: 서비스 가능 지역 제한]
     1. 네가 먼저 여행지를 제안할 때: 반드시 아래 [TRIPLY DB 등록 장소 목록]과 [TRIPLY DB 등록 축제 목록]에 있는 지역과 장소만 추천해. 절대로 DB에 없는 다른 지역을 먼저 언급하지 마.
-    2. 유저가 DB에 없는 지역을 먼저 가겠다고 말할 때: 절대 그 지역의 명소를 아는 척하며 맞장구치거나 추천하지 마! 즉시 "앗, 죄송해요. 아직 제가 그 지역의 정보는 공부하지 못했어요. 😭 대신 이런 곳은 어떠세요?"라며, 반드시 [TRIPLY DB 등록 장소 목록]에 있는 다른 지역을 대안으로 제시해.
+    2. 유저가 DB에 없는 지역을 먼저 가겠다고 말할 때: 절대 그 지역의 명소를 아는 척하며 맞장구치거나 추천하지 마! 즉시 "앗, 죄송해요. 아직 제가 그 지역의 정보는 공부하지 못했어요. 대신 이런 곳은 어떠세요?"라며, 반드시 [TRIPLY DB 등록 장소 목록]에 있는 다른 지역을 대안으로 제시해.
 
-    🚨 [장소 추천 특별 규칙 - 매우 중요] 🚨
+    [장소 추천 특별 규칙 - 매우 중요]
     목록 상단에 있는 특정 지역만 편식해서 추천하지 마! 반드시 [TRIPLY DB 등록 장소 목록]을 끝까지 꼼꼼히 읽어.
     유저의 취향(바다, 역사, 도시, 산, 액티비티 등)에 가장 완벽하게 부합하는 지역을 전국(서울, 부산, 인천, 창원 등 포함)에서 폭넓게 탐색해서 추천해.
 
-    🚨 [문맥 유지 및 현실적인 동선 제약 - 매우 중요] 🚨
+    [문맥 유지 및 현실적인 동선 제약 - 매우 중요]
     1. 전체 문맥 파악 (최신 편향 금지): 유저가 대화 중에 일정이나 추가 조건을 덧붙이더라도, 대화 초반에 요구했던 '핵심 목적과 테마'를 절대 무시하거나 잊지 마. 마지막 메시지에만 매몰되어 전혀 엉뚱한 테마로 화제를 전환하지 말고, 지금까지 누적된 요구사항을 모두 합산해서 분석해.
     2. 지리적 한계 인지 (물리적 거리 고려): 유저가 여러 테마나 장소를 동시에 요구했을 때, 짧은 일정 내에 이동할 수 없는 물리적으로 멀리 떨어진 두 개 이상의 지역을 동시에 묶어서 추천하지 마. 반드시 한 번의 여행으로 이동 가능한 '단일 지역(시/군/구)' 내에서 유저의 요구 조건을 최대한 모두 만족하는 곳을 찾아.
-    3. 교집합 실패 시 타협안 제시 (환각 원천 차단): 만약 유저의 다중 조건을 모두 만족하는 단일 지역이 DB에 없다면, 절대 엉뚱한 장소를 지어내어 추천하지 마. 즉시 "앗, 제가 아는 곳 중에서는 그 조건들을 한 번에 모두 즐길 수 있는 지역이 아직 없어요 😭 대신 한 가지 테마에 집중한다면..."과 같이 한계를 명확히 인정하고, 유저의 조건 중 하나만 확실하게 충족하는 대안을 제시하며 타협해.
+    3. 교집합 실패 시 타협안 제시 (환각 원천 차단): 만약 유저의 다중 조건을 모두 만족하는 단일 지역이 DB에 없다면, 절대 엉뚱한 장소를 지어내어 추천하지 마. 즉시 "앗, 제가 아는 곳 중에서는 그 조건들을 한 번에 모두 즐길 수 있는 지역이 아직 없어요. 대신 한 가지 테마에 집중한다면..."과 같이 한계를 명확히 인정하고, 유저의 조건 중 하나만 확실하게 충족하는 대안을 제시하며 타협해.
 
     [TRIPLY DB 등록 장소 목록]
     {db_summary_text}
@@ -106,7 +106,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     [TRIPLY DB 등록 축제 목록]
     {festival_summary_text}
 
-    🚨 [축제 추천 관련 특별 규칙] 🚨
+    [축제 추천 관련 특별 규칙]
     유저가 "축제"를 가고 싶다고 하면, [TRIPLY DB 등록 장소 목록]에 있는 일반 장소를 억지로 '축제 같은 분위기'라고 둘러대지 마! 
     반드시 [TRIPLY DB 등록 축제 목록]에 있는 실제 축제 이름을 언급하면서 추천하고, 해당 축제가 열리는 지역을 3번 region 값으로 적어.
 
@@ -125,21 +125,21 @@ async def recommend_optimized_route(req: RecommendRequest):
        - 단어 금지: 대화 중에 "DB", "데이터베이스", "목록" 같은 시스템 단어를 절대 유저에게 말하지 마. 한계를 설명할 때는 "현재 TRIPLY는 [장소]의 여행 코스만 추천해 드릴 수 있어요"처럼 자연스럽게 대답해.
        - is_ready가 false일 때: 유저의 말에 공감하며 주어진 장소 안에서 구체적 지역/장소를 추천하고 어떠냐고 물어봐.
        - is_ready가 true일 때: 서버에서 응답 메시지를 직접 조립할 것이므로, 여기서는 그냥 빈 문자열("")로 둬.
-    3. region: 구체적인 지역명. 유저가 선택하거나 동의한 지역명을 맥락에서 찾아 정확히 적어줘. ⚠️[지역 임의 변경 절대 금지]⚠️ 이전 대화에서 특정 지역으로 합의가 끝났다면, 제공된 목록의 순서나 내용을 핑계로 합의된 지역과 다른 지역명을 절대 출력하지 마. 무조건 합의된 원래 지역명만 출력해. 확정되지 않았으면 null.
+    3. region: 구체적인 지역명. 유저가 선택하거나 동의한 지역명을 맥락에서 찾아 정확히 적어줘. [지역 임의 변경 절대 금지] 이전 대화에서 특정 지역으로 합의가 끝났다면, 제공된 목록의 순서나 내용을 핑계로 합의된 지역과 다른 지역명을 절대 출력하지 마. 무조건 합의된 원래 지역명만 출력해. 확정되지 않았으면 null.
     4. tags: 추출된 매핑 태그 리스트
     5. category_pref: "사람이 적은/숨겨진" 곳을 원하면 "HIDDEN", "핫플/유명한" 곳은 "TREND", 언급 없으면 null
     6. weight_media: 인스타 핫플 선호도 (0.0~1.0)
     7. weight_festival: 유저가 대화에서 축제를 가기로 합의했거나, 10번 selected_festival 값이 존재한다면 무조건 1.0으로 강제 고정해. (마지막 메시지에 '축제'라는 단어가 없더라도 절대 점수를 내리지 마)
     8. start_date / end_date: 날짜 (YYYY-MM-DD, 없으면 null)
     9. course_name: 코스가 확정되었을 때(is_ready: true), 대화의 맥락을 살려 한눈에 파악할 수 있는 매력적인 창작 코스 이름. 
-       - ⚠️매우 중요(네이밍 조건 로직)⚠️: 유저가 긍정한 대상의 성격에 따라 이름의 시작 단어를 다르게 설정해.
+       - 매우 중요(네이밍 조건 로직): 유저가 긍정한 대상의 성격에 따라 이름의 시작 단어를 다르게 설정해.
          1) 특정 장소/축제 선택: 유저가 구체적인 관광지나 축제명을 콕 집어 수락했다면, 상위 행정구역(지역명)으로 뭉뚱그리지 말고 반드시 해당 관광지/축제 이름 자체를 맨 앞에 그대로 살려서 작성해.
          2) 넓은 지역 단위 선택: 유저가 특정 장소 없이 시/군/구 단위의 지역으로만 수락했다면, 해당 지역명을 맨 앞에 적어.
-       - ⚠️[지역 임의 변경 절대 금지]⚠️: 이전 대화에서 합의된 지역의 장소/축제가 아닌, 엉뚱한 다른 지역의 장소를 끌어와서 코스 이름을 짓지 마. 무조건 합의된 지역 내에서만 생성해.
+       - [지역 임의 변경 절대 금지]: 이전 대화에서 합의된 지역의 장소/축제가 아닌, 엉뚱한 다른 지역의 장소를 끌어와서 코스 이름을 짓지 마. 무조건 합의된 지역 내에서만 생성해.
        - 절대 대괄호 [ ] 등 기호를 출력하지 말고 자연스러운 띄어쓰기로 연결해.
        - 확정 전이면 null.
     10. selected_festival: 코스가 확정되었을 때(is_ready: true), 유저가 대화 중 특정 축제를 명시적으로 선택했거나 네가 제안한 축제에 동의했다면 그 축제의 이름. 축제를 가려는 것이 아니면 null.
-    11. theme_course: 유저가 "왕과사는남자" 등 미디어 기반 테마 코스를 요구하면 해당 키워드를 적어. 아니면 null.
+    11. theme_course: 유저가 "왕과사는남자", "꽃보다청춘" 등 미디어 기반 테마 코스를 요구하면 해당 키워드를 적어. 아니면 null.
     """
 
     try:
@@ -150,7 +150,7 @@ async def recommend_optimized_route(req: RecommendRequest):
         )
         intent = json.loads(response.text)
     except Exception as e:
-        print("🚨 [Gemini 부분 에러] 원인:", str(e))
+        print("[Gemini 부분 에러] 원인:", str(e))
         raise HTTPException(status_code=500, detail=f"Gemini 분석 오류: {str(e)}")
 
     recent_chat = "".join([msg.content for msg in req.chat_history[-2:]]).replace(" ", "")
@@ -162,6 +162,12 @@ async def recommend_optimized_route(req: RecommendRequest):
         intent["region"] = "테마투어"
         intent["course_name"] = "영화 왕과 사는 남자 성지순례 코스"
         print("[미디어 테마 강제 인식] 왕과사는남자 코스 발동!")
+    elif "꽃보다청춘" in recent_chat or "꽃청춘" in recent_chat:
+        intent["theme_course"] = "꽃보다청춘"
+        intent["is_ready"] = True
+        intent["region"] = "테마투어"
+        intent["course_name"] = "예능 꽃보다 청춘 힐링 투어"
+        print("[미디어 테마 강제 인식] 꽃보다청춘 코스 발동!")
 
     # 2) 축제 및 일반 장소 스캔
     if intent.get("is_ready"):
@@ -204,7 +210,7 @@ async def recommend_optimized_route(req: RecommendRequest):
             """
             cur.execute(sql_query, (f"%{theme_course}%",))
             places = cur.fetchall()
-            print(f"🔥 [테마 DB 멱살잡기] '{theme_course}' 태그 장소 {len(places)}개 로드 완료.")
+            print(f"[테마 DB 멱살잡기] '{theme_course}' 태그 장소 {len(places)}개 로드 완료.")
 
         # 축제 DB 조회
         target_festival = intent.get("selected_festival")
@@ -303,7 +309,7 @@ async def recommend_optimized_route(req: RecommendRequest):
                     places.append(p)
 
     except Exception as e:
-        print("🚨 [DB 조회 부분 에러] 원인:", str(e))
+        print("[DB 조회 부분 에러] 원인:", str(e))
         raise HTTPException(status_code=500, detail=f"DB 조회 오류: {str(e)}")
     finally:
         if 'cur' in locals() and cur:
@@ -315,9 +321,9 @@ async def recommend_optimized_route(req: RecommendRequest):
     if not places:
         region_name = intent.get('region', '그')
         if region_name == "테마투어":
-            reply_msg = "앗, 죄송해요! 아직 해당 테마 코스에 등록된 장소가 준비되지 않았어요. 😭 다른 테마나 지역은 어떠신가요?"
+            reply_msg = "앗, 죄송해요! 아직 해당 테마 코스에 등록된 장소가 준비되지 않았어요. 다른 테마나 지역은 어떠신가요?"
         else:
-            reply_msg = f"앗, 죄송해요! 아직 제가 '{region_name}' 지역의 정보는 공부하지 못했어요. 😭 혹시 다른 지역은 어떠신가요?"
+            reply_msg = f"앗, 죄송해요! 아직 제가 '{region_name}' 지역의 정보는 공부하지 못했어요. 혹시 다른 지역은 어떠신가요?"
             
         return {
             "status": "chat",
@@ -371,12 +377,12 @@ async def recommend_optimized_route(req: RecommendRequest):
         if intent.get("theme_course") and p.get("tags"):
             if intent["theme_course"] in str(p["tags"]).replace(" ", ""):
                 val += 99999.0
-                print(f"🔥 [테마 장소 철통방어] '{p['name']}' 강제 1순위 고정 완료!")
+                print(f"[테마 장소 철통방어] '{p['name']}' 강제 1순위 고정 완료!")
 
         # 일반 장소 멱살잡기 (9999점)
         if p["name"].replace(" ", "") in recent_chat:
             val += 9999.0
-            print(f"🔥 [일반 장소 멱살잡기] '{p['name']}' 발견! 점수 밀어내기 방지 완료.")
+            print(f"[일반 장소 멱살잡기] '{p['name']}' 발견! 점수 밀어내기 방지 완료.")
 
         place_values[p["place_id"]] = val
         
@@ -410,7 +416,7 @@ async def recommend_optimized_route(req: RecommendRequest):
     places = final_spots
 
     final_course_name = intent.get("course_name", "맞춤형 여행 코스")
-    final_reply = f"원하시는 분위기에 맞게 '{final_course_name}' 기획을 완료했어요!\n\n아래 버튼을 눌러 동선을 확인해 보세요! ✨"
+    final_reply = f"원하시는 분위기에 맞게 '{final_course_name}' 기획을 완료했어요!\n\n아래 버튼을 눌러 동선을 확인해 보세요!"
 
     if len(places) == 1:
         return {
